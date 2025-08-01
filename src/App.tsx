@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Checkbox } from 'primereact/checkbox';
-import 'primereact/resources/themes/lara-light-indigo/theme.css';
+import 'primereact/resources/themes/lara-dark-purple/theme.css';
 import 'primereact/resources/primereact.min.css';
 
 interface Post {
@@ -19,6 +19,9 @@ const App = () => {
   const [data, setData] = useState<Post[]>([]);
   const [checkedItems, setCheckedItems] = useState<{ [key: string]: boolean }>({});
   const isMounted = useRef(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rows, setRows] = useState(7);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   useEffect(() => {
     const saved = localStorage.getItem("checkedItems");
@@ -27,13 +30,16 @@ const App = () => {
     }
 
     const fetchData = async () => {
-      const res = await fetch("https://api.artic.edu/api/v1/artworks?page=1");
+      const res = await fetch(`https://api.artic.edu/api/v1/artworks?page=${currentPage}&limit=${rows}`);
       const json = await res.json();
+    
       setData(json.data);
+      setTotalRecords(json.pagination.total);
+      
     };
 
     fetchData();
-  }, []);
+  }, [currentPage, rows]);
 
   useEffect(() => {
     if (isMounted.current) {
@@ -80,16 +86,27 @@ const App = () => {
     );
   };
 
+  const onPageChange = (e: any) => {
+    setCurrentPage(e.page + 1);
+    setRows(e.rows);
+  }
+
   return (
     <div className="p-4">
       <DataTable
         value={data}
         tableStyle={{ minWidth: '60rem' }}
         paginator
-        rows={5}
+        rows={rows}
+        totalRecords={totalRecords}
+        lazy
+        first={(currentPage - 1) * rows}
         key={JSON.stringify(checkedItems)}
-        rowsPerPageOptions={[5, 10, 25, 50]}
+        rowsPerPageOptions={[5, 10, 25, 50, 100]}
+        onPage={onPageChange}
+        
       >
+        
         <Column
           header={checkboxHeaderTemplate}
           body={checkboxBodyTemplate}
@@ -101,6 +118,7 @@ const App = () => {
         <Column field="inscriptions" header="Inscriptions" />
         <Column field="date_start" header="Date Start" />
         <Column field="date_end" header="Date End" />
+        
       </DataTable>
     </div>
   );
