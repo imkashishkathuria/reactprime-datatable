@@ -71,13 +71,11 @@ const App = () => {
   const allSelected = data.length > 0 && data.every((item) => checkedItems[item.id.toString()]);
 
   const onSubmitRows = () => {
-    if(!isNaN(inputRows) && inputRows > 0){
-      setRows(inputRows);
+    
+      setRows(inputRows ?? 10);
       setCurrentPage(1);
       op.current?.hide();
-    }else{
-      alert("Please enter a valid number");
-    }
+    
   }
 
   const checkboxHeaderTemplate = () => (
