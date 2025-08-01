@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Checkbox } from 'primereact/checkbox';
+import { OverlayPanel } from 'primereact/overlaypanel';
 import 'primereact/resources/themes/lara-dark-purple/theme.css';
 import 'primereact/resources/primereact.min.css';
+import { BiChevronDown } from 'react-icons/bi';
 
 interface Post {
   id: number;
@@ -20,8 +22,10 @@ const App = () => {
   const [checkedItems, setCheckedItems] = useState<{ [key: string]: boolean }>({});
   const isMounted = useRef(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [rows, setRows] = useState(7);
+  const [rows, setRows] = useState(12);
   const [totalRecords, setTotalRecords] = useState(0);
+  const op = useRef<OverlayPanel>(null);
+  const [inputRows, setInputRows] = useState<number>();
 
   useEffect(() => {
     const saved = localStorage.getItem("checkedItems");
@@ -66,12 +70,42 @@ const App = () => {
 
   const allSelected = data.length > 0 && data.every((item) => checkedItems[item.id.toString()]);
 
+  const onSubmitRows = () => {
+    if(!isNaN(inputRows) && inputRows > 0){
+      setRows(inputRows);
+      setCurrentPage(1);
+      op.current?.hide();
+    }else{
+      alert("Please enter a valid number");
+    }
+  }
+
   const checkboxHeaderTemplate = () => (
+     <div style={{display: "flex", gap: "10px", alignItems: "center"}}>
     <Checkbox
       inputId="selectAll"
       checked={allSelected}
       onChange={(e) => handleSelectAll(e.checked!)}
     />
+    <div onClick={(e)=> op.current?.toggle(e)}>
+      <BiChevronDown size={30} />
+      </div>
+
+      <OverlayPanel ref={op}>
+      <div className="flex flex-col p-2 gap-4">
+        <div>
+          <input type='number' placeholder='Select rows...' className='p-2 border-2 border-white' value={inputRows} onChange={(e) => setInputRows(Number(e.target.value))}/>
+          
+        </div>
+        <div className='flex justify-end'>
+          <button onClick={onSubmitRows} className='p-3 cursor-pointer border-1 border-white rounded-[10px]'>Submit</button>
+        </div>
+        
+
+      </div>
+    </OverlayPanel>
+      
+    </div>
   );
 
   const checkboxBodyTemplate = (rowData: Post) => {
@@ -83,6 +117,8 @@ const App = () => {
         checked={isChecked}
         onChange={(e) => handleCheckboxChange(rowData.id, e.checked!)}
       />
+    
+
     );
   };
 
