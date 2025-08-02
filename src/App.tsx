@@ -19,11 +19,13 @@ interface Post {
 
 const App = () => {
   const [data, setData] = useState<Post[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
   const [checkedItems, setCheckedItems] = useState<{ [key: string]: boolean }>({});
   const isMounted = useRef(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rows, setRows] = useState(12);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [itemIds, setItemIds] = useState<number[]>([]);
   const op = useRef<OverlayPanel>(null);
   const [inputRows, setInputRows] = useState<number>();
 
@@ -36,14 +38,57 @@ const App = () => {
     const fetchData = async () => {
       const res = await fetch(`https://api.artic.edu/api/v1/artworks?page=${currentPage}&limit=${rows}`);
       const json = await res.json();
-    
       setData(json.data);
       setTotalRecords(json.pagination.total);
-      
+
+
     };
 
     fetchData();
   }, [currentPage, rows]);
+
+
+
+  useEffect(() => {
+    const all = itemIds.length > 0 && itemIds.every((id) => checkedItems[id.toString()]);
+    setSelectAll(all);
+  }, [itemIds, checkedItems]);
+
+
+  useEffect(() => {
+    const fetchIds = async () => {
+      let page = 1;
+      let hasMore = true;
+      const ids: number[] = [];
+
+      try {
+        while (hasMore) {
+          const res = await fetch(`https://api.artic.edu/api/v1/artworks?page=${page}&limit=100`);
+          const result = await res.json();
+
+          if (!Array.isArray(result.data)) {
+            return;
+          }
+
+          const currentIds = result.data.map((item: any) => item.id);
+          ids.push(...currentIds);
+
+          hasMore = result.pagination.current_page < result.pagination.total_pages;
+          page += 1;
+          setItemIds(ids);
+          // console.log(ids);
+        }
+
+
+      } catch (err) {
+        console.error('Failed to fetch all IDs:', err);
+      }
+    };
+
+    fetchIds();
+  }, []);
+
+
 
   useEffect(() => {
     if (isMounted.current) {
@@ -61,48 +106,50 @@ const App = () => {
   };
 
   const handleSelectAll = (isChecked: boolean) => {
-    const updated: { [key: string]: boolean } = {};
-    data.forEach((item) => {
-      updated[item.id.toString()] = isChecked;
-    });
-    setCheckedItems(updated);
+    if (isChecked) {
+      const updated: { [key: string]: boolean } = {};
+
+      itemIds.forEach((id) => {
+        updated[id.toString()] = isChecked;
+      });
+      setCheckedItems(updated);
+    } else {
+      setCheckedItems({});
+    }
+
+
   };
 
-  const allSelected = data.length > 0 && data.every((item) => checkedItems[item.id.toString()]);
-
   const onSubmitRows = () => {
-    
-      setRows(inputRows ?? 10);
-      setCurrentPage(1);
-      op.current?.hide();
-    
+
+    setRows(inputRows ?? 10);
+    setCurrentPage(1);
+    op.current?.hide();
+
   }
 
   const checkboxHeaderTemplate = () => (
-     <div style={{display: "flex", gap: "10px", alignItems: "center"}}>
-    <Checkbox
-      inputId="selectAll"
-      checked={allSelected}
-      onChange={(e) => handleSelectAll(e.checked!)}
-    />
-    <div onClick={(e)=> op.current?.toggle(e)}>
-      <BiChevronDown size={30} />
+    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+      <Checkbox
+        inputId="selectAll"
+        checked={selectAll}
+        onChange={(e) => handleSelectAll(e.checked!)}
+      />
+      <div onClick={(e) => op.current?.toggle(e)}>
+        <BiChevronDown size={30} />
       </div>
 
       <OverlayPanel ref={op}>
-      <div className="flex flex-col p-2 gap-4">
-        <div>
-          <input type='number' placeholder='Select rows...' className='p-2 border-2 border-white' value={inputRows} onChange={(e) => setInputRows(Number(e.target.value))}/>
-          
-        </div>
-        <div className='flex justify-end'>
-          <button onClick={onSubmitRows} className='p-3 cursor-pointer border-1 border-white rounded-[10px]'>Submit</button>
-        </div>
-        
+        <div className="flex flex-col p-2 gap-4">
+          <div>
+            <input type='number' placeholder='Select rows...' className='p-2 border-2 border-white' value={inputRows} onChange={(e) => setInputRows(Number(e.target.value))} />
 
-      </div>
-    </OverlayPanel>
-      
+          </div>
+          <div className='flex justify-end'>
+            <button onClick={onSubmitRows} className='p-3 cursor-pointer border-1 border-white rounded-[10px]'>Submit</button>
+          </div>
+        </div>
+      </OverlayPanel>
     </div>
   );
 
@@ -115,7 +162,7 @@ const App = () => {
         checked={isChecked}
         onChange={(e) => handleCheckboxChange(rowData.id, e.checked!)}
       />
-    
+
 
     );
   };
@@ -135,12 +182,12 @@ const App = () => {
         totalRecords={totalRecords}
         lazy
         first={(currentPage - 1) * rows}
-        key={JSON.stringify(checkedItems)}
+        key={JSON.stringify(checkedItems) + currentPage}
         rowsPerPageOptions={[5, 10, 25, 50, 100]}
         onPage={onPageChange}
-        
+
       >
-        
+
         <Column
           header={checkboxHeaderTemplate}
           body={checkboxBodyTemplate}
@@ -152,7 +199,7 @@ const App = () => {
         <Column field="inscriptions" header="Inscriptions" />
         <Column field="date_start" header="Date Start" />
         <Column field="date_end" header="Date End" />
-        
+
       </DataTable>
     </div>
   );
